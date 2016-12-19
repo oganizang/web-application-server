@@ -14,6 +14,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import db.DataBase;
+import model.User;
 import util.HttpRequestUtils;
 
 public class RequestHandler extends Thread {
@@ -42,23 +44,37 @@ public class RequestHandler extends Thread {
         		line = br.readLine();
         		log.debug("Request line : {}", line);
         	}
+        	//메모리 주소가 다른데 equals는 값을 비교할 때, ==은 메모리주소는 같은데 값이 같은지 비        	        	
+        	int index = url.indexOf("?"); // ?가 문자열의 몇번째 위치인지 숫자값이 나온다. 없으면 -1 나온다.
+        	String path;
+        	DataOutputStream dos = new DataOutputStream(out);
         	
-        	int index = url.indexOf("?");
-        	String requestPath = url.substring(0, index);
-        	String queryString = url.substring(index+1);
-        	Map<String, String> params = HttpRequestUtils.parseQueryString(queryString);
-        	
+        	if (index == -1) {
+        		response(dos, url);
         		
-        
-        	// TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
-            DataOutputStream dos = new DataOutputStream(out);
-            byte[] body = Files.readAllBytes(new File("./webapp" + tokens[1]).toPath());
-            response200Header(dos, body.length);
-            responseBody(dos, body);
+        	} else {
+        		path = url.substring(0, index); // index 까지 
+        		String queryString = url.substring(index+1);
+        		if (path.equals("/user/create")) {
+        	       	Map<String, String> params = HttpRequestUtils.parseQueryString(queryString);
+        	        User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
+        	        log.debug("user : {}", user);
+        	        DataBase.addUser(user);
+        	        response(dos, "/index.html");
+        		}
+
+        	}
         } catch (IOException e) {
             log.error(e.getMessage());
         }
     }
+    
+    private void response(DataOutputStream dos, String filePath) throws IOException {
+    	byte[] body = Files.readAllBytes(new File("./webapp" + filePath).toPath());
+    	response200Header(dos, body.length);
+    	responseBody(dos, body);
+    }
+    
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
